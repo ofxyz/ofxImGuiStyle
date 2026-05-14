@@ -157,6 +157,11 @@ void ofxImGuiStyle::applyCompactMetrics(float scrollbarSize,
 }
 
 void ofxImGuiStyle::applyRandomAccentTheme() {
+	// Reset metrics to Dear ImGui defaults before applying colours. Without this,
+	// callers that `captureBaseStyle()` then `ScaleAllSizes(uiScale)` (e.g. ofxKit)
+	// would stack scale on already-scaled padding every time Random is clicked.
+	ImGui::GetStyle() = ImGuiStyle{};
+
 	// Keep the random theme readable by using dark as the base and varying only
 	// the accent hue/saturation.
 	ImGui::StyleColorsDark();
