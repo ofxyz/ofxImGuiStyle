@@ -27,6 +27,27 @@ public:
 
 	float getFontSize() const { return m_fontSize; }
 
+	// -------------------------------------------------------------------------
+	// Icon button helpers
+	//
+	// These handle all sizing/centering math so call sites don't need to push
+	// FramePadding manually.
+	//
+	//   icon  — FA glyph string, e.g. ICON_FA_EYE
+	//   id    — ImGui ID suffix, e.g. "##eye"
+	//   ghost — transparent background, hover tint only (good for eye/lock icons)
+	//
+	// The button is automatically sized to the full current row height with the
+	// glyph centred inside, and uses compact horizontal padding.
+	// -------------------------------------------------------------------------
+	static bool IconButton(const char* icon, const char* id = "##ib",
+	                       bool ghost = false);
+
+	/// Shorthand for ghost = true.
+	static bool IconButtonGhost(const char* icon, const char* id = "##ib") {
+		return IconButton(icon, id, true);
+	}
+
 private:
 	float m_fontSize = 16.0f;
 	float m_dpiScale = 1.0f;

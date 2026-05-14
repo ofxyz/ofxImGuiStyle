@@ -85,7 +85,65 @@ if (ofxImGuiStyle::loadTheme(ofToDataPath("theme.bin", true))) {
 }
 ```
 
-## Examples
+## Icon Buttons
+
+`ofxImGuiStyle` provides two static helpers that produce correctly sized and
+vertically centred Font Awesome icon buttons with no manual `PushStyleVar` at
+the call site.
+
+### How it works
+
+The math is pre-computed inside the helper from two ImGui runtime values that
+are always available:
+
+| Value | Meaning |
+|-------|---------|
+| `ImGui::GetFrameHeight()` | Current row height (`fontSize + 2 × FramePadding.y`) |
+| `ImGui::GetFontSize()` | Rendered glyph height |
+
+```
+padY = (GetFrameHeight() − GetFontSize()) / 2
+```
+
+This makes the button exactly as tall as the current row, with the glyph
+visually centred top-to-bottom. A fixed compact `padX = 3 px` keeps icon-only
+buttons narrow.
+
+### API
+
+```cpp
+// Solid button (visible background).
+bool ofxImGuiStyle::IconButton(const char* icon,
+                               const char* id    = "##ib",
+                               bool        ghost = false);
+
+// Ghost variant — transparent background, hover/active tint only.
+// Ideal for overlay icons (eye, lock, etc.) inside list rows.
+bool ofxImGuiStyle::IconButtonGhost(const char* icon,
+                                    const char* id = "##ib");
+```
+
+- `icon` — Font Awesome glyph string, e.g. `ICON_FA_EYE`
+- `id`   — ImGui ID suffix; must be unique within the parent window, e.g. `"##eye"`
+- Returns `true` on click (same as `ImGui::Button`)
+
+### Example
+
+```cpp
+#include <ofxImGuiStyle/src/ofxImGuiStyle.h>
+#include <ofxImGuiStyle/src/IconsFontAwesome5.h>
+
+// Ghost eye toggle — centres itself in whatever row height is current
+if (ofxImGuiStyle::IconButtonGhost(
+        visible ? ICON_FA_EYE : ICON_FA_EYE_SLASH, "##eye")) {
+    visible = !visible;
+}
+ImGui::SameLine();
+
+// Normal (solid) icon button
+if (ofxImGuiStyle::IconButton(ICON_FA_PLUS, "##add"))
+    addItem();
+```
 
 - `example_Basic` demonstrates the focused API surface: fonts, icons, presets,
   random accent themes, scaling, save/load, and the style editor.

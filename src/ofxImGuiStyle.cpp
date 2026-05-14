@@ -282,8 +282,44 @@ void ofxImGuiStyle::draw(bool* open) {
 			}
 		}
 
-		ImGui::Separator();
-		ImGui::ShowStyleEditor();
+	ImGui::Separator();
+	ImGui::ShowStyleEditor();
+}
+ImGui::End();
+}
+
+// ---------------------------------------------------------------------------
+// Icon button helpers
+// ---------------------------------------------------------------------------
+
+bool ofxImGuiStyle::IconButton(const char* icon, const char* id, bool ghost)
+{
+	// Height: match the current row height exactly so this button never shrinks
+	// the selection highlight or misaligns sibling widgets.  padY is derived so
+	// the glyph lands exactly in the vertical centre.
+	const float rowH = ImGui::GetFrameHeight();
+	const float fs   = ImGui::GetFontSize();
+	const float padY = std::max(0.f, (rowH - fs) * 0.5f);
+	// Compact horizontal padding keeps icon-only buttons narrow.
+	constexpr float kPadX = 3.f;
+
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(kPadX, padY));
+
+	if (ghost) {
+		// Transparent background; hover/active colours are left as-is so the
+		// button still reacts visually to mouse interaction.
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+		                      ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
 	}
-	ImGui::End();
+
+	// Compose "glyph##id" — the glyph is the visible label, the ##id suffix
+	// makes the ImGui ID unique without affecting the rendered text.
+	char label[128];
+	std::snprintf(label, sizeof(label), "%s%s", icon, id);
+	const bool clicked = ImGui::Button(label);
+
+	if (ghost) ImGui::PopStyleColor(2);
+	ImGui::PopStyleVar();
+	return clicked;
 }
