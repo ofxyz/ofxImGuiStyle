@@ -13,7 +13,7 @@ public:
 	static void applyDarkTheme();
 	static void applyLightTheme();
 	static void applyClassicTheme();
-	static void applyCompactMetrics(float scrollbarSize = 8.0f,
+	static void applyCompactMetrics(float scrollbarSize = 12.0f,
 	                                float scrollbarRounding = 4.0f,
 	                                float grabMinSize = 8.0f);
 	static void applyRandomAccentTheme();
