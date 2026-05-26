@@ -6,4 +6,5 @@ meta:
 
 common:
 	ADDON_DEPENDENCIES = ofxImGui
+	ADDON_SOURCES += src/imgui-knobs/imgui-knobs.cpp
 	ADDON_SOURCES_EXCLUDE = src/gen_font_headers.py

@@ -2,7 +2,9 @@
 
 #include "ofMain.h"
 #include "ofxImGui.h"
-#include "ofxImGuiStyle.h"
+#include "ImTheme.h"
+#include "ImThemeRegistry.h"
+#include "ImFonts.h"
 
 class ofApp : public ofBaseApp {
 public:
@@ -22,8 +24,8 @@ private:
     void drawViewport();
     void drawStatusBar();
 
-    ofxImGui::Gui gui;
-    ofxImGuiStyle style;
+    ofxImGui::Gui         gui;
+    ImTheme::TweakedTheme tweaks;  // for the embedded ShowThemeTweakGui
 
     bool showThemeEditor = false;
     bool showAbout = false;

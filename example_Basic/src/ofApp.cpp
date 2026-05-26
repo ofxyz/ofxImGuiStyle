@@ -11,8 +11,12 @@ void ofApp::setup() {
 #endif
     gui.setup(nullptr, false, flags, true);
 
-    style.loadFonts(gui, 15.0f);
-    applyTheme();
+    if (ImFont* f = ImFonts::LoadDefaultFonts(ImGui::GetIO().Fonts, 15.0f))
+        gui.setDefaultFont(f);
+    gui.rebuildFontsTexture();
+
+    ImTheme::Setup(currentThemeId);
+    uiScale = ImTheme::UIScale();
 }
 
 void ofApp::draw() {
@@ -28,28 +32,6 @@ void ofApp::draw() {
 
     gui.end();
     gui.draw();
-}
-
-void ofApp::applyTheme() {
-    ImGui::GetStyle() = ImGuiStyle{};
-
-    switch (currentTheme) {
-        case Theme::Dark:
-            ofxImGuiStyle::applyDarkTheme();
-            break;
-        case Theme::Light:
-            ofxImGuiStyle::applyLightTheme();
-            break;
-        case Theme::Classic:
-            ofxImGuiStyle::applyClassicTheme();
-            break;
-        case Theme::RandomAccent:
-            ofxImGuiStyle::applyRandomAccentTheme();
-            break;
-    }
-
-    style.captureBaseStyle();
-    style.applyScale(uiScale);
 }
 
 void ofApp::drawDockspace() {
@@ -107,59 +89,35 @@ void ofApp::buildDefaultDockLayout(ImGuiID dockspaceId) {
 
 void ofApp::drawControls() {
     if (ImGui::Begin(ICON_FA_PALETTE " ofxImGuiStyle")) {
-        ImGui::TextWrapped("This example shows the reusable style helpers: fonts, icons, presets, compact metrics, scaling, theme files, and the style editor.");
+        ImGui::TextWrapped("Reusable style helpers: bundled fonts + icons (ImFonts), "
+                           "the vendored ImTheme registry + tweaker, and the OF wrapper.");
 
-        ImGui::SeparatorText("Theme Presets");
-        if (ImGui::Button("Dark")) {
-            currentTheme = Theme::Dark;
-            applyTheme();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Light")) {
-            currentTheme = Theme::Light;
-            applyTheme();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Classic")) {
-            currentTheme = Theme::Classic;
-            applyTheme();
-        }
+        ImGui::SeparatorText("Themes");
+        if (ImTheme::ShowSelector(currentThemeId))
+            uiScale = ImTheme::UIScale();
 
-        if (ImGui::Button(ICON_FA_DICE " Random Accent", ImVec2(-1, 0))) {
-            currentTheme = Theme::RandomAccent;
-            applyTheme();
-        }
+        if (ImGui::Button(ICON_FA_DICE " Random Accent", ImVec2(-1, 0)))
+            ImTheme::ApplyRandomAccent();
 
         ImGui::SeparatorText("Scale");
         ImGui::SetNextItemWidth(-1);
-        if (ImGui::SliderFloat("##scale", &uiScale, 0.75f, 2.5f, "%.2fx")) {
-            style.applyScale(uiScale);
-        }
-        if (ImGui::Button("1x")) {
-            uiScale = 1.0f;
-            style.applyScale(uiScale);
-        }
+        if (ImGui::SliderFloat("##scale", &uiScale, 0.75f, 2.5f, "%.2fx"))
+            ImTheme::SetUIScale(uiScale);
+        if (ImGui::Button("1x"))   { uiScale = 1.0f; ImTheme::SetUIScale(uiScale); }
         ImGui::SameLine();
-        if (ImGui::Button("1.5x")) {
-            uiScale = 1.5f;
-            style.applyScale(uiScale);
-        }
+        if (ImGui::Button("1.5x")) { uiScale = 1.5f; ImTheme::SetUIScale(uiScale); }
         ImGui::SameLine();
-        if (ImGui::Button("2x")) {
-            uiScale = 2.0f;
-            style.applyScale(uiScale);
-        }
+        if (ImGui::Button("2x"))   { uiScale = 2.0f; ImTheme::SetUIScale(uiScale); }
 
-        ImGui::SeparatorText("Theme File");
+        ImGui::SeparatorText("Style Snapshot (.bin)");
         const std::string themePath = ofToDataPath("ofxImGuiStyle-basic-theme.bin", true);
-        if (ImGui::Button(ICON_FA_SAVE " Save Theme", ImVec2(-1, 0))) {
-            ofxImGuiStyle::saveTheme(themePath);
+        if (ImGui::Button(ICON_FA_SAVE " Save Style", ImVec2(-1, 0))) {
+            ImTheme::SaveStyle(themePath.c_str());
         }
-        if (ImGui::Button(ICON_FA_FOLDER_OPEN " Load Theme", ImVec2(-1, 0))) {
-            if (ofxImGuiStyle::loadTheme(themePath)) {
-                ofxImGuiStyle::applyCompactMetrics();
-                style.captureBaseStyle();
-                style.applyScale(uiScale);
+        if (ImGui::Button(ICON_FA_FOLDER_OPEN " Load Style", ImVec2(-1, 0))) {
+            if (ImTheme::LoadStyle(themePath.c_str())) {
+                ImTheme::ApplyCompactMetrics();
+                ImTheme::Commit();
             }
         }
         ImGui::TextDisabled("%s", themePath.c_str());
@@ -182,16 +140,26 @@ void ofApp::drawPreview() {
         ImGui::SliderFloat("Amount", &amount, 0.0f, 1.0f);
         ImGui::ColorEdit4("Accent Color", color);
 
+        ImGui::SeparatorText("Knobs (imgui-knobs)");
+        ImGui::BeginGroup();
+        ImGuiKnobs::Knob("Cutoff", &knobCutoff, 0.f, 1.f, 0.f, "%.2f",
+                         ImGuiKnobVariant_WiperDot, 42.f);
+        ImGui::SameLine();
+        ImGuiKnobs::Knob("Reso", &knobReso, 0.f, 1.f, 0.f, "%.2f",
+                         ImGuiKnobVariant_Dot, 42.f);
+        ImGui::SameLine();
+        ImGuiKnobs::KnobInt("Step", &knobSteps, 0, 16, 0.f, "%d",
+                            ImGuiKnobVariant_Stepped, 42.f);
+        ImGui::EndGroup();
+
         const char* items[] = {"Small", "Medium", "Large"};
         ImGui::Combo("Choice", &choice, items, 3);
 
-        if (ImGui::Button(ICON_FA_CHECK " Primary Action")) {
+        if (ImGui::Button(ICON_FA_CHECK " Primary Action"))
             amount = 1.0f;
-        }
         ImGui::SameLine();
-        if (ImGui::Button(ICON_FA_TIMES " Reset")) {
+        if (ImGui::Button(ICON_FA_TIMES " Reset"))
             amount = 0.0f;
-        }
 
         ImGui::SeparatorText("Tree / Tabs");
         if (ImGui::TreeNode(ICON_FA_FOLDER " Scene")) {
@@ -218,6 +186,11 @@ void ofApp::drawPreview() {
 
 void ofApp::drawStyleEditor() {
     bool open = showStyleEditor;
-    style.draw(&open);
+    ImGui::SetNextWindowSize(ImVec2(500, 600), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin(ICON_FA_PALETTE " Theme Editor", &open)) {
+        // ImTheme's tabbed "Theme Tweaks" + "Style Editor" widget.
+        ImTheme::ShowThemeTweakGui(&tweaks);
+    }
+    ImGui::End();
     showStyleEditor = open;
 }

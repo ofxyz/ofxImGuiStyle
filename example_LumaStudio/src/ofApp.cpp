@@ -11,11 +11,13 @@ void ofApp::setup() {
 #endif
     gui.setup(nullptr, true, flags, true);
 
-    style.loadFonts(gui, 15.0f);
-    ofxImGuiStyle::applyDarkTheme();
+    if (ImFont* f = ImFonts::LoadDefaultFonts(ImGui::GetIO().Fonts, 15.0f))
+        gui.setDefaultFont(f);
+    gui.rebuildFontsTexture();
 
-    // Luma Studio is meant to feel like a polished desktop app, so give the
-    // shared theme a little more breathing room than the compact defaults.
+    ImTheme::Setup(ImTheme::Theme_DarculaDarker);
+
+    // Extra breathing room for a desktop-app feel (then re-commit baseline).
     ImGuiStyle& imguiStyle = ImGui::GetStyle();
     imguiStyle.WindowPadding    = ImVec2(14, 12);
     imguiStyle.FramePadding     = ImVec2(10, 6);
@@ -24,8 +26,7 @@ void ofApp::setup() {
     imguiStyle.CellPadding      = ImVec2(8, 5);
     imguiStyle.IndentSpacing    = 22.0f;
     imguiStyle.ScrollbarSize    = 10.0f;
-
-    style.captureBaseStyle();
+    ImTheme::Commit();
 
     consoleLog.push_back("[info]  Luma Studio initialized");
     consoleLog.push_back("[info]  Loaded project: Untitled.luma");
@@ -57,7 +58,11 @@ void ofApp::draw() {
     drawStatusBar();
 
     if (showThemeEditor) {
-        style.draw(&showThemeEditor);
+        ImGui::SetNextWindowSize(ImVec2(500, 600), ImGuiCond_FirstUseEver);
+        if (ImGui::Begin(ICON_FA_PALETTE " Theme Editor", &showThemeEditor)) {
+            ImTheme::ShowThemeTweakGui(&tweaks);
+        }
+        ImGui::End();
     }
 
     if (showAbout) {

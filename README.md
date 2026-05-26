@@ -2,25 +2,53 @@
 
 ![preview-example_Basic](example_Basic/preview.png)
 
-`ofxImGuiStyle` is a small companion addon for `ofxImGui` that centralizes
-shared ImGui styling for openFrameworks apps.
+`ofxImGuiStyle` is an umbrella addon for `ofxImGui` that ships four
+independent, pure Dear ImGui sub-libraries plus a tiny openFrameworks-aware
+glue layer:
 
-It provides:
+- **`ImTheme`** (`ImTheme.{h,cpp}` + `ImThemeRegistry.{h,cpp}`)
+  Theme system: 17 built-in themes vendored from
+  [pthom/hello_imgui](https://github.com/pthom/hello_imgui)
+  (`Darcula`, `DarculaDarker`, `LightRounded`, `ImGuiColorsDark`,
+  `MaterialFlat`, ...) plus an open-ended `RegisterCustom` registry for
+  addons / apps to contribute their own (`tb303`, `tr808`, `tr909`,
+  `wasp`, ...), plus a `ShowSelector` / `ShowThemeTweakGui` UI.
+- **`ImFonts`** (`ImFonts.{h,cpp}`)
+  Font / icon loader: bundled **Input Sans Regular** TTF (UI font) merged
+  with **Font Awesome 5 Solid** for icons, plus `IconButton` /
+  `IconButtonGhost` widgets sized from the current row height.
+- **`ImKnobs`** (`ImKnobs.h` + vendored `src/imgui-knobs/`)
+  Rotary knob widgets from [imgui-knobs](https://github.com/altschuler/imgui-knobs)
+  (MIT). Multiple visual variants; reads colours from the active ImGui style.
+- **`ImMidi`** (`ImMidi.h`, `ImMidiMapper.h`, `ImMidiRegistry.{h,cpp}`)
+  MIDI learn / CC mapping for any ImGui control from
+  [ImMidiMapper](https://github.com/ofxyz/ImMidiMapper) (MIT). Optional
+  `ofxMidi` I/O when that addon is linked; otherwise use `pushCC()` yourself.
+- **`IconsFontAwesome5.h`** — vendored constants from
+  [juliettef/IconFontCppHeaders](https://github.com/juliettef/IconFontCppHeaders).
 
-- bundled Input Sans font loading
-- bundled Font Awesome 5 Solid icon merging
-- reusable dark, light, and classic theme helpers
-- compact scrollbar/grab metrics for HiDPI screens
-- random accent-theme generation
-- base-style capture and UI scale application
-- binary `ImGuiStyle` save/load helpers
-- a simple built-in style editor window
+Fonts and themes are deliberately kept in the same addon: in real apps the
+two are coupled (different themes presume specific x-height / weight, icon
+buttons depend on FA glyphs being merged into the active font).
 
-The addon is intentionally generic. Higher-level editor addons, such as
-`ofxKit`, should own their menus, preferences, and persistence policy while
-delegating reusable font/theme/style mechanics to `ofxImGuiStyle`.
+Both APIs are pure Dear ImGui — they don't include any openFrameworks header.
+The only OF coupling lives in callers that already own an `ofxImGui::Gui`
+(passed in by the caller for `setDefaultFont` / `rebuildFontsTexture`).
 
-## Usage
+## What's not here
+
+`ofxImGuiStyle` no longer ships:
+
+- A `class ofxImGuiStyle` C++ object — replaced by the free-function
+  `ImTheme::` / `ImFonts::` APIs. Instances are unnecessary because all
+  meaningful state (the captured base style, the selected theme id, the
+  custom-theme registry) is genuinely global.
+- Hardware-specific themes (TB-303, TR-808, TR-909, EDP Wasp, ...) — those
+  live with the instruments that own them (`ofx303`, `ofx808`, `ofx909`,
+  `ofxWasp`). Each instrument's `Kit.h` registers its theme through
+  `ImTheme::RegisterCustom` behind a `__has_include` guard.
+
+## Quick start
 
 Add both addons to `addons.make`:
 
@@ -29,123 +57,152 @@ ofxImGui
 ofxImGuiStyle
 ```
 
-Then load fonts after `ofxImGui::Gui::setup()` and before drawing the first
-frame:
+Then load fonts + apply a theme after `ofxImGui::Gui::setup()`:
 
 ```cpp
 #include "ofxImGui.h"
-#include "ofxImGuiStyle.h"
+#include <ofxImGuiStyle/src/ImTheme.h>
+#include <ofxImGuiStyle/src/ImThemeRegistry.h>
+#include <ofxImGuiStyle/src/ImFonts.h>
 
 ofxImGui::Gui gui;
-ofxImGuiStyle style;
 
 void ofApp::setup() {
     gui.setup();
 
-    style.loadFonts(gui, 15.0f);
-    ofxImGuiStyle::applyDarkTheme();
-    style.captureBaseStyle();
+    if (ImFont* f = ImFonts::LoadDefaultFonts(ImGui::GetIO().Fonts, 15.f))
+        gui.setDefaultFont(f);
+    gui.rebuildFontsTexture();
+
+    // Theme + HiDPI scale in one call (DetectOsScale when uiScale <= 0).
+    ImTheme::Setup("DarculaDarker");
 }
+```
 
-void ofApp::draw() {
-    gui.begin();
+## Selecting + tweaking themes at runtime
 
-    if (ImGui::Button("Random Theme")) {
-        ofxImGuiStyle::applyRandomAccentTheme();
-        style.captureBaseStyle();
+```cpp
+static std::string themeId = "DarculaDarker";
+
+if (ImTheme::ShowSelector(themeId)) { }  // applies + re-commits scale
+
+ImTheme::ShowThemeTweakGui(&tweaks);
+```
+
+`ShowSelector` applies the picked theme and automatically snapshots the
+unscaled baseline and re-applies the stored UI scale — no extra calls needed.
+
+## UI scale
+
+```cpp
+float uiScale = ImTheme::UIScale();
+
+if (ImGui::SliderFloat("Scale", &uiScale, 0.75f, 2.5f))
+    ImTheme::SetUIScale(uiScale);
+```
+
+`Setup`, `ApplyByName`, and `ShowSelector` all re-commit scale when the theme
+changes. `SetUIScale` only rescales from the existing baseline (fast path for
+sliders).
+
+## Hand-tweaking metrics
+
+If you edit `ImGui::GetStyle()` after a theme (extra padding, rounding, etc.),
+call `Commit()` once to snapshot and re-apply scale:
+
+```cpp
+ImTheme::Setup(ImTheme::Theme_DarculaDarker);
+ImGui::GetStyle().WindowPadding = ImVec2(14, 12);
+// ...
+ImTheme::Commit();
+```
+
+## Registering a custom theme from an addon
+
+```cpp
+ImTheme::RegisterCustom({
+    "myaddon",
+    "My Addon",
+    [] {
+        ImGui::GetStyle() = ImGuiStyle{};
+        ImGui::StyleColorsDark();
+        // ...
     }
+});
 
-    gui.end();
+ImTheme::Setup("myaddon");
+```
+
+Guard with `__has_include` if the addon must build without `ofxImGuiStyle`
+(see `ofx303 / 808 / 909 / Wasp`).
+
+## Style snapshot files (.bin)
+
+```cpp
+ImTheme::SaveStyle(ofToDataPath("my_style.bin", true).c_str());
+
+if (ImTheme::LoadStyle(path)) {
+    ImTheme::ApplyCompactMetrics();
+    ImTheme::Commit();
 }
 ```
 
-## Scaling
-
-Use `captureBaseStyle()` after applying a theme, then call `applyScale()` when
-the UI scale changes. This avoids compounding paddings and margins every time
-the scale or theme changes.
+## Icon buttons (ImFonts)
 
 ```cpp
-ofxImGuiStyle::applyDarkTheme();
-style.captureBaseStyle();
-
-style.applyScale(1.5f);
-```
-
-## Theme Files
-
-Themes are saved as binary snapshots of `ImGuiStyle`.
-
-```cpp
-ofxImGuiStyle::saveTheme(ofToDataPath("theme.bin", true));
-
-if (ofxImGuiStyle::loadTheme(ofToDataPath("theme.bin", true))) {
-    ofxImGuiStyle::applyCompactMetrics();
-    style.captureBaseStyle();
-}
-```
-
-## Icon Buttons
-
-`ofxImGuiStyle` provides two static helpers that produce correctly sized and
-vertically centred Font Awesome icon buttons with no manual `PushStyleVar` at
-the call site.
-
-### How it works
-
-The math is pre-computed inside the helper from two ImGui runtime values that
-are always available:
-
-| Value | Meaning |
-|-------|---------|
-| `ImGui::GetFrameHeight()` | Current row height (`fontSize + 2 × FramePadding.y`) |
-| `ImGui::GetFontSize()` | Rendered glyph height |
-
-```
-padY = (GetFrameHeight() − GetFontSize()) / 2
-```
-
-This makes the button exactly as tall as the current row, with the glyph
-visually centred top-to-bottom. A fixed compact `padX = 3 px` keeps icon-only
-buttons narrow.
-
-### API
-
-```cpp
-// Solid button (visible background).
-bool ofxImGuiStyle::IconButton(const char* icon,
-                               const char* id    = "##ib",
-                               bool        ghost = false);
-
-// Ghost variant — transparent background, hover/active tint only.
-// Ideal for overlay icons (eye, lock, etc.) inside list rows.
-bool ofxImGuiStyle::IconButtonGhost(const char* icon,
-                                    const char* id = "##ib");
-```
-
-- `icon` — Font Awesome glyph string, e.g. `ICON_FA_EYE`
-- `id`   — ImGui ID suffix; must be unique within the parent window, e.g. `"##eye"`
-- Returns `true` on click (same as `ImGui::Button`)
-
-### Example
-
-```cpp
-#include <ofxImGuiStyle/src/ofxImGuiStyle.h>
+#include <ofxImGuiStyle/src/ImFonts.h>
 #include <ofxImGuiStyle/src/IconsFontAwesome5.h>
 
-// Ghost eye toggle — centres itself in whatever row height is current
-if (ofxImGuiStyle::IconButtonGhost(
-        visible ? ICON_FA_EYE : ICON_FA_EYE_SLASH, "##eye")) {
+if (ImFonts::IconButtonGhost(visible ? ICON_FA_EYE : ICON_FA_EYE_SLASH, "##eye"))
     visible = !visible;
-}
-ImGui::SameLine();
-
-// Normal (solid) icon button
-if (ofxImGuiStyle::IconButton(ICON_FA_PLUS, "##add"))
-    addItem();
 ```
 
-- `example_Basic` demonstrates the focused API surface: fonts, icons, presets,
-  random accent themes, scaling, save/load, and the style editor.
-- `example_LumaStudio` is a larger fictional app mockup showing what a styled
-  ImGui application can feel like.
+## Knobs (ImKnobs)
+
+```cpp
+#include <ofxImGuiStyle/src/ImKnobs.h>
+
+float cutoff = 0.5f;
+if (ImGuiKnobs::Knob("Cutoff", &cutoff, 0.f, 1.f, 0.f, "%.2f",
+                     ImGuiKnobVariant_WiperDot, 42.f))
+{
+    // value changed
+}
+```
+
+## MIDI mapping (ImMidi)
+
+Requires **ofxMidi** in `addons.make` for hardware ports. Wire in your app
+(e.g. `tb303::midiBridge::setup()` via `tb303::kit::setupMidi()`).
+
+```cpp
+#include <ofxImGuiStyle/src/ImMidi.h>
+
+ImMidi::Setup(ofToDataPath("midiMapper.json", true));
+
+void ofApp::update() {
+    ImMidi::Update();
+}
+
+// inside ImGui:
+ImGuiKnobs::Knob("Cutoff", &cutoff, 0.f, 1.f);
+ImMidi::Mapper().watchLast("cutoff", &cutoff, 0.f, 1.f, "Cutoff");
+
+ImMidi::DrawEditor(&showMidiMapper);
+```
+
+Right-click any registered control → **MIDI Learn…** → move a hardware knob.
+
+## Examples
+
+- `example_Basic` — fonts, icons, knobs, theme selector, scale slider, `.bin` I/O.
+- `example_LumaStudio` — desktop-app mockup with custom padding + `Commit()`.
+
+## Attribution
+
+- `ImTheme.{h,cpp}` — adapted from
+  [pthom/hello_imgui](https://github.com/pthom/hello_imgui) (MIT).
+- `IconsFontAwesome5.h` — [juliettef/IconFontCppHeaders](https://github.com/juliettef/IconFontCppHeaders) (MIT).
+- `src/imgui-knobs/` — [altschuler/imgui-knobs](https://github.com/altschuler/imgui-knobs) (MIT).
+- `ImMidiMapper.h` — ImMidiMapper (MIT).
+- Bundled fonts: **Input Sans Regular** and **Font Awesome 5 Free Solid**.
