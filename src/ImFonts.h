@@ -11,6 +11,11 @@
 //       Returns the primary font handle; the caller is responsible for
 //       triggering its renderer's atlas upload (e.g.
 //       `ofxImGui::Gui::rebuildFontsTexture()` in openFrameworks).
+//   - LoadJetBrainsMono / LoadJetBrainsMonoFont:
+//       bundled JetBrains Mono (Regular, Bold, Italic, BoldItalic) for code editors,
+//       markdown (`ofxImGuiMarkdown`), and any monospace UI.
+//   - LoadCodeEditorFont(atlas, pixelSize):
+//       shorthand for JetBrains Mono Regular at `pixelSize`.
 //   - IconButton / IconButtonGhost:
 //       row-height-aware FontAwesome icon buttons that compute padding from
 //       the current style so callers don't push/pop FramePadding manually.
@@ -26,6 +31,25 @@
 
 namespace ImFonts
 {
+    enum class JetBrainsMonoVariant
+    {
+        Regular = 0,
+        Bold,
+        Italic,
+        BoldItalic,
+        Count
+    };
+
+    const char* JetBrainsMonoVariantName(JetBrainsMonoVariant variant);
+
+    struct JetBrainsMonoFonts
+    {
+        ImFont* regular    = nullptr;
+        ImFont* bold       = nullptr;
+        ImFont* italic     = nullptr;
+        ImFont* boldItalic = nullptr;
+    };
+
     // Load the bundled Input Sans + Font Awesome 5 Solid (merged) fonts into
     // `atlas` at `pixelSize`. Returns the Input Sans font handle (the default
     // font), or nullptr on failure.
@@ -38,7 +62,16 @@ namespace ImFonts
     //
     ImFont* LoadDefaultFonts(ImFontAtlas* atlas, float pixelSize);
 
-    // Monospace font for code editors (ImGui embedded Proggy vector font).
+    // Load one JetBrains Mono face into `atlas`. Safe to call after
+    // LoadDefaultFonts on the same atlas.
+    ImFont* LoadJetBrainsMonoFont(ImFontAtlas* atlas,
+                                  float pixelSize,
+                                  JetBrainsMonoVariant variant);
+
+    // Load Regular + Bold + Italic + BoldItalic at the same pixel size.
+    JetBrainsMonoFonts LoadJetBrainsMono(ImFontAtlas* atlas, float pixelSize);
+
+    // Monospace font for code editors — JetBrains Mono Regular.
     // Load into the same atlas as LoadDefaultFonts, then rebuild the texture.
     ImFont* LoadCodeEditorFont(ImFontAtlas* atlas, float pixelSize);
 

@@ -2,6 +2,10 @@
 
 #include "IconsFontAwesome5.h"
 #include "InputSans_Regular_ttf.h"
+#include "JetBrainsMono_BoldItalic_ttf.h"
+#include "JetBrainsMono_Bold_ttf.h"
+#include "JetBrainsMono_Italic_ttf.h"
+#include "JetBrainsMono_Regular_ttf.h"
 #include "fa_solid_900_ttf.h"
 
 #include <algorithm>
@@ -10,6 +14,66 @@
 
 namespace ImFonts
 {
+    namespace
+    {
+        ImFont* loadEmbeddedTtf(ImFontAtlas* atlas,
+                                float pixelSize,
+                                const unsigned char* data,
+                                unsigned int size,
+                                const char* name)
+        {
+            if (!atlas || !data || size == 0)
+                return nullptr;
+
+            void* fontCopy = ImGui::MemAlloc(size);
+            std::memcpy(fontCopy, data, size);
+            ImFontConfig cfg;
+            cfg.FontDataOwnedByAtlas = true;
+            cfg.OversampleH          = cfg.OversampleV = 1;
+            cfg.PixelSnapH           = true;
+            std::strncpy(cfg.Name, name, sizeof(cfg.Name) - 1);
+            return atlas->AddFontFromMemoryTTF(fontCopy, (int)size, pixelSize, &cfg);
+        }
+
+        struct EmbeddedTtf
+        {
+            const unsigned char* data;
+            unsigned int         size;
+            const char*          name;
+        };
+
+        EmbeddedTtf jetBrainsMonoSource(JetBrainsMonoVariant variant)
+        {
+            switch (variant) {
+            case JetBrainsMonoVariant::Regular:
+                return { JetBrainsMono_Regular_ttf_data, JetBrainsMono_Regular_ttf_size,
+                         "JetBrains Mono" };
+            case JetBrainsMonoVariant::Bold:
+                return { JetBrainsMono_Bold_ttf_data, JetBrainsMono_Bold_ttf_size,
+                         "JetBrains Mono Bold" };
+            case JetBrainsMonoVariant::Italic:
+                return { JetBrainsMono_Italic_ttf_data, JetBrainsMono_Italic_ttf_size,
+                         "JetBrains Mono Italic" };
+            case JetBrainsMonoVariant::BoldItalic:
+                return { JetBrainsMono_BoldItalic_ttf_data, JetBrainsMono_BoldItalic_ttf_size,
+                         "JetBrains Mono Bold Italic" };
+            default:
+                return { nullptr, 0, "" };
+            }
+        }
+    }
+
+    const char* JetBrainsMonoVariantName(JetBrainsMonoVariant variant)
+    {
+        switch (variant) {
+        case JetBrainsMonoVariant::Regular: return "JetBrains Mono";
+        case JetBrainsMonoVariant::Bold:    return "JetBrains Mono Bold";
+        case JetBrainsMonoVariant::Italic:  return "JetBrains Mono Italic";
+        case JetBrainsMonoVariant::BoldItalic: return "JetBrains Mono Bold Italic";
+        default:                            return "Unknown";
+        }
+    }
+
     ImFont* LoadDefaultFonts(ImFontAtlas* atlas, float pixelSize)
     {
         if (!atlas) return nullptr;
@@ -43,16 +107,27 @@ namespace ImFonts
         return primary;
     }
 
+    ImFont* LoadJetBrainsMonoFont(ImFontAtlas* atlas,
+                                  float pixelSize,
+                                  JetBrainsMonoVariant variant)
+    {
+        const EmbeddedTtf source = jetBrainsMonoSource(variant);
+        return loadEmbeddedTtf(atlas, pixelSize, source.data, source.size, source.name);
+    }
+
+    JetBrainsMonoFonts LoadJetBrainsMono(ImFontAtlas* atlas, float pixelSize)
+    {
+        JetBrainsMonoFonts fonts;
+        fonts.regular    = LoadJetBrainsMonoFont(atlas, pixelSize, JetBrainsMonoVariant::Regular);
+        fonts.bold       = LoadJetBrainsMonoFont(atlas, pixelSize, JetBrainsMonoVariant::Bold);
+        fonts.italic     = LoadJetBrainsMonoFont(atlas, pixelSize, JetBrainsMonoVariant::Italic);
+        fonts.boldItalic = LoadJetBrainsMonoFont(atlas, pixelSize, JetBrainsMonoVariant::BoldItalic);
+        return fonts;
+    }
+
     ImFont* LoadCodeEditorFont(ImFontAtlas* atlas, float pixelSize)
     {
-        if (!atlas) return nullptr;
-
-        ImFontConfig cfg;
-        cfg.SizePixels = pixelSize;
-        cfg.OversampleH = cfg.OversampleV = 1;
-        cfg.PixelSnapH = true;
-        std::strncpy(cfg.Name, "Code Editor", sizeof(cfg.Name) - 1);
-        return atlas->AddFontDefaultVector(&cfg);
+        return LoadJetBrainsMonoFont(atlas, pixelSize, JetBrainsMonoVariant::Regular);
     }
 
     ImFont* RebuildDefaultFonts(ImFontAtlas* atlas, float pixelSize)

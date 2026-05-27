@@ -15,8 +15,9 @@ glue layer:
   `wasp`, ...), plus a `ShowSelector` / `ShowThemeTweakGui` UI.
 - **`ImFonts`** (`ImFonts.{h,cpp}`)
   Font / icon loader: bundled **Input Sans Regular** TTF (UI font) merged
-  with **Font Awesome 5 Solid** for icons, plus `IconButton` /
-  `IconButtonGhost` widgets sized from the current row height.
+  with **Font Awesome 5 Solid** for icons, **JetBrains Mono**
+  (Regular / Bold / Italic / **BoldItalic**) for code editors and markdown,
+  plus `IconButton` / `IconButtonGhost` widgets sized from the current row height.
 - **`ImKnobs`** (`ImKnobs.h` + vendored `src/imgui-knobs/`)
   Rotary knob widgets from [imgui-knobs](https://github.com/altschuler/imgui-knobs)
   (MIT). Multiple visual variants; reads colours from the active ImGui style.
@@ -35,19 +36,6 @@ Both APIs are pure Dear ImGui — they don't include any openFrameworks header.
 The only OF coupling lives in callers that already own an `ofxImGui::Gui`
 (passed in by the caller for `setDefaultFont` / `rebuildFontsTexture`).
 
-## What's not here
-
-`ofxImGuiStyle` no longer ships:
-
-- A `class ofxImGuiStyle` C++ object — replaced by the free-function
-  `ImTheme::` / `ImFonts::` APIs. Instances are unnecessary because all
-  meaningful state (the captured base style, the selected theme id, the
-  custom-theme registry) is genuinely global.
-- Hardware-specific themes (TB-303, TR-808, TR-909, EDP Wasp, ...) — those
-  live with the instruments that own them (`ofx303`, `ofx808`, `ofx909`,
-  `ofxWasp`). Each instrument's `Kit.h` registers its theme through
-  `ImTheme::RegisterCustom` behind a `__has_include` guard.
-
 ## Quick start
 
 Add both addons to `addons.make`:
@@ -61,9 +49,9 @@ Then load fonts + apply a theme after `ofxImGui::Gui::setup()`:
 
 ```cpp
 #include "ofxImGui.h"
-#include <ofxImGuiStyle/src/ImTheme.h>
-#include <ofxImGuiStyle/src/ImThemeRegistry.h>
-#include <ofxImGuiStyle/src/ImFonts.h>
+#include "ImTheme.h>"
+#include "ImThemeRegistry.h"
+#include "ImFonts.h"
 
 ofxImGui::Gui gui;
 
@@ -147,11 +135,44 @@ if (ImTheme::LoadStyle(path)) {
 }
 ```
 
+## JetBrains Mono (code + markdown)
+
+Four faces are embedded and loaded via `LoadJetBrainsMono()` or individually via
+`LoadJetBrainsMonoFont(..., JetBrainsMonoVariant::Regular | Bold | Italic | BoldItalic)`.
+
+```cpp
+#include "ImFonts.h"
+
+ImFont* ui = ImFonts::LoadDefaultFonts(ImGui::GetIO().Fonts, 15.f);
+gui.setDefaultFont(ui);
+
+ImFont* code = ImFonts::LoadCodeEditorFont(ImGui::GetIO().Fonts, 14.f);
+codeEditor->setFont(code);
+
+// Or load Regular / Bold / Italic / BoldItalic together (e.g. for ofxImGuiMarkdown):
+ImFonts::JetBrainsMonoFonts jbm = ImFonts::LoadJetBrainsMono(ImGui::GetIO().Fonts, 15.f);
+renderer.regularFont    = jbm.regular;
+renderer.boldFont       = jbm.bold;
+renderer.italicFont     = jbm.italic;
+renderer.boldItalicFont = jbm.boldItalic;
+renderer.monoFont       = jbm.regular;
+
+gui.rebuildFontsTexture();
+```
+
+Regenerate embedded headers after updating the TTFs:
+
+```bash
+python addons/ofxImGuiStyle/src/gen_font_headers.py
+```
+
+Source files are read from `addons/JetBrainsMono-2.304/fonts/ttf/`.
+
 ## Icon buttons (ImFonts)
 
 ```cpp
-#include <ofxImGuiStyle/src/ImFonts.h>
-#include <ofxImGuiStyle/src/IconsFontAwesome5.h>
+#include "ImFonts.h"
+#include "IconsFontAwesome5.h"
 
 if (ImFonts::IconButtonGhost(visible ? ICON_FA_EYE : ICON_FA_EYE_SLASH, "##eye"))
     visible = !visible;
@@ -160,7 +181,7 @@ if (ImFonts::IconButtonGhost(visible ? ICON_FA_EYE : ICON_FA_EYE_SLASH, "##eye")
 ## Knobs (ImKnobs)
 
 ```cpp
-#include <ofxImGuiStyle/src/ImKnobs.h>
+#include "ImKnobs.h"
 
 float cutoff = 0.5f;
 if (ImGuiKnobs::Knob("Cutoff", &cutoff, 0.f, 1.f, 0.f, "%.2f",
@@ -176,7 +197,7 @@ Requires **ofxMidi** in `addons.make` for hardware ports. Wire in your app
 (e.g. `tb303::midiBridge::setup()` via `tb303::kit::setupMidi()`).
 
 ```cpp
-#include <ofxImGuiStyle/src/ImMidi.h>
+#include "ImMidi.h"
 
 ImMidi::Setup(ofToDataPath("midiMapper.json", true));
 
@@ -205,4 +226,5 @@ Right-click any registered control → **MIDI Learn…** → move a hardware kno
 - `IconsFontAwesome5.h` — [juliettef/IconFontCppHeaders](https://github.com/juliettef/IconFontCppHeaders) (MIT).
 - `src/imgui-knobs/` — [altschuler/imgui-knobs](https://github.com/altschuler/imgui-knobs) (MIT).
 - `ImMidiMapper.h` — ImMidiMapper (MIT).
-- Bundled fonts: **Input Sans Regular** and **Font Awesome 5 Free Solid**.
+- Bundled fonts: **Input Sans Regular**, **Font Awesome 5 Free Solid**, and
+  **JetBrains Mono** (Regular / Bold / Italic / BoldItalic, SIL Open Font License).
