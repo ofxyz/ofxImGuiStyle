@@ -109,6 +109,9 @@ namespace ImTheme
     void PushTweakedTheme(const TweakedTheme& tweaked_theme);
     void PopTweakedTheme();
 
+    // Sliders for hue / rounding / alpha tweaks (no theme picker — use ShowSelector).
+    bool ShowTweakSliders(ThemeTweaks* tweaks);
+
     // Show the theme selection listbox, the theme tweak widgets, as well as
     // ImGui::ShowStyleEditor. Returns true if modified (Warning: when using
     // ShowStyleEditor, no info about modification is transmitted.)

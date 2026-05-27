@@ -137,52 +137,41 @@ namespace ImTheme
     {
         bool changed = false;
 
-        ImGui::SeparatorText("Built-in");
-        const float fs = ImGui::GetFontSize();
-        const float rowH = fs + ImGui::GetStyle().ItemInnerSpacing.y;
-        ImVec2 builtInSize(15.f * fs, Theme_Count * rowH);
-        if (ImGui::BeginListBox("##ImTheme_BuiltIns", builtInSize))
-        {
-            // Match the upstream _ShowThemeSelector ordering: start at 3 so the
-            // generic ImGui Classic/Dark/Light themes get placed at the end.
-            const int nb = (int)Theme_Count;
-            for (int i = 3; i < nb + 3; ++i)
-            {
-                Theme_ theme_i = (Theme_)(i % nb);
-                const char* themeName = Name(theme_i);
-                const bool is_selected = (currentId == themeName);
-                if (ImGui::Selectable(themeName, is_selected))
-                {
-                    currentId = themeName;
-                    ApplyByName(currentId);
-                    changed = true;
-                }
-                if (is_selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndListBox();
+        struct ThemeEntry {
+            std::string id;
+            const char* label;
+        };
+        std::vector<ThemeEntry> entries;
+        entries.reserve(Theme_Count + g_customs.size());
+
+        const int nb = (int)Theme_Count;
+        for (int i = 3; i < nb + 3; ++i) {
+            Theme_ theme_i = (Theme_)(i % nb);
+            const char* themeName = Name(theme_i);
+            if (themeName && themeName[0] != '\0')
+                entries.push_back({themeName, themeName});
+        }
+        for (const auto& c : g_customs)
+            entries.push_back({c.id, c.label.c_str()});
+
+        if (entries.empty())
+            return false;
+
+        std::vector<const char*> labels;
+        labels.reserve(entries.size());
+        int currentIdx = 0;
+        for (size_t i = 0; i < entries.size(); ++i) {
+            labels.push_back(entries[i].label);
+            if (entries[i].id == currentId)
+                currentIdx = (int)i;
         }
 
-        if (!g_customs.empty())
-        {
-            ImGui::SeparatorText("Custom");
-            ImVec2 customSize(15.f * fs, (float)g_customs.size() * rowH);
-            if (ImGui::BeginListBox("##ImTheme_Customs", customSize))
-            {
-                for (const auto& c : g_customs)
-                {
-                    const bool is_selected = (currentId == c.id);
-                    if (ImGui::Selectable(c.label.c_str(), is_selected))
-                    {
-                        currentId = c.id;
-                        ApplyByName(currentId);
-                        changed = true;
-                    }
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndListBox();
-            }
+        ImGui::SetNextItemWidth(-1.f);
+        if (ImGui::Combo("Theme##ImThemeSelector", &currentIdx, labels.data(),
+                         (int)labels.size())) {
+            currentId = entries[(size_t)currentIdx].id;
+            ApplyByName(currentId);
+            changed = true;
         }
 
         return changed;

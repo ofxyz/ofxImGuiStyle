@@ -1256,6 +1256,13 @@ namespace ImTheme
         return changed;
     }
 
+    bool ShowTweakSliders(ThemeTweaks* tweaks)
+    {
+        if (!tweaks)
+            return false;
+        return _ShowTweakGui(tweaks);
+    }
+
     bool ShowThemeTweakGui(TweakedTheme *tweaked_theme)
     {
         bool changed = false;
@@ -1269,8 +1276,6 @@ namespace ImTheme
         {
             if (ImGui::BeginTabItem("Theme Tweaks"))
             {
-                if (_ShowThemeSelector(&tweaked_theme->Theme))
-                    changed = true;
                 if (_ShowTweakGui(&tweaked_theme->Tweaks))
                     changed = true;
                 ImGui::EndTabItem();

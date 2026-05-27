@@ -20,7 +20,8 @@ namespace ImFonts
                                 float pixelSize,
                                 const unsigned char* data,
                                 unsigned int size,
-                                const char* name)
+                                const char* name,
+                                bool includeMarkdownExtras = false)
         {
             if (!atlas || !data || size == 0)
                 return nullptr;
@@ -32,7 +33,20 @@ namespace ImFonts
             cfg.OversampleH          = cfg.OversampleV = 1;
             cfg.PixelSnapH           = true;
             std::strncpy(cfg.Name, name, sizeof(cfg.Name) - 1);
-            return atlas->AddFontFromMemoryTTF(fontCopy, (int)size, pixelSize, &cfg);
+
+            const ImWchar* glyphRanges = nullptr;
+            static ImVector<ImWchar> s_markdownGlyphRanges;
+            if (includeMarkdownExtras) {
+                ImFontGlyphRangesBuilder builder;
+                builder.AddRanges(atlas->GetGlyphRangesDefault());
+                builder.AddChar(0x2022); // • BULLET (unordered lists)
+                builder.AddChar(0x00B7); // · MIDDLE DOT (fallback marker)
+                builder.BuildRanges(&s_markdownGlyphRanges);
+                glyphRanges = s_markdownGlyphRanges.Data;
+            }
+
+            return atlas->AddFontFromMemoryTTF(
+                fontCopy, (int)size, pixelSize, &cfg, glyphRanges);
         }
 
         struct EmbeddedTtf
@@ -112,7 +126,7 @@ namespace ImFonts
                                   JetBrainsMonoVariant variant)
     {
         const EmbeddedTtf source = jetBrainsMonoSource(variant);
-        return loadEmbeddedTtf(atlas, pixelSize, source.data, source.size, source.name);
+        return loadEmbeddedTtf(atlas, pixelSize, source.data, source.size, source.name, true);
     }
 
     JetBrainsMonoFonts LoadJetBrainsMono(ImFontAtlas* atlas, float pixelSize)
